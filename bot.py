@@ -500,7 +500,7 @@ async def cmd_start(message: Message):
         reply_markup=keyboard,
     )
 
-@dp.message(F.text == "🚀 Начать test!")
+@dp.message(F.text == "🚀 Начать тест!")
 async def start_test(message: Message):
     user_id = message.from_user.id
 
