@@ -343,7 +343,7 @@ async def cmd_start(message: Message):
     )
 
 @dp.message(F.text == "🚀 Начать тест!")
-async def start_test(message: types.Message):
+async def start_test(message: Message):
     user_id = message.from_user.id
 
     data = user_data.get(user_id)
@@ -388,7 +388,7 @@ async def ask_question(user_id, chat_id):
 
 
 @dp.message(F.text.in_(["1", "2", "3", "4"]))
-async def process_answer(message: types.Message):
+async def process_answer(message: Message):
     user_id = message.from_user.id
     data = user_data.get(user_id)
 
@@ -814,7 +814,7 @@ async def show_results(user_id, chat_id):
 
 # ====== ОБРАБОТКА КНОПКИ "📞 КОНСУЛЬТАЦИЯ" ======
 @dp.message(F.text == '📞 Консультация')
-async def consultation_button(message: types.Message):
+async def consultation_button(message: Message):
     user_id = message.from_user.id
     data = user_data.get(user_id, {})
 
@@ -854,13 +854,13 @@ async def consultation_button(message: types.Message):
 
 # ====== КОМАНДА /consultation ======
 @dp.message(Command("consultation"))
-async def consultation_command(message: types.Message):
+async def consultation_command(message: Message):
     await consultation_button(message)
 
 
 # ====== ОБРАБОТКА КНОПКИ "🔄 НОВЫЙ ТЕСТ" ======
 @dp.message(F.text == '🔄 Новый тест')
-async def new_test_button(message: types.Message):
+async def new_test_button(message: Message):
     user_id = message.from_user.id
 
     user_data[user_id] = {
@@ -896,7 +896,7 @@ async def new_test_button(message: types.Message):
 # ====== КОМАНДА ПОМОЩИ ======
 @dp.message(Command("help"))
 @dp.message(F.text.in_(['ℹ️ Помощь', 'помощь', 'Помощь']))
-async def help_command(message: types.Message):
+async def help_command(message: Message):
     help_text = """ℹ️ *ПОМОЩЬ ПО БОТУ*
 
 🔹 *Как работает тест?*
@@ -923,7 +923,7 @@ async def help_command(message: types.Message):
 # ====== ОБРАБОТКА НЕИЗВЕСТНЫХ КОМАНД ======
 
 @dp.message()
-async def unknown_command(message: types.Message):
+async def unknown_command(message: Message):
     await message.answer("🤔 Не понял команду. Используй /start чтобы начать тест или /help для помощи.")
 
 # ======
@@ -939,3 +939,4 @@ logger.info("=" * 40)
 logger.info("🤖 Bot polling запущен")
 logger.info(datetime.now().strftime("%d.%m.%Y %H:%M:%S"))
 logger.info("=" * 40)
+
