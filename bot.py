@@ -3,14 +3,13 @@ import sys
 import logging
 import asyncio
 from datetime import datetime
-from flask import Flask, request
 
-from aiogram import Bot, Dispatcher, types, F
+from aiogram import Bot, Dispatcher, F
+from aiogram.types import Message
 from aiogram.filters import Command
 from aiogram.types import (
     ReplyKeyboardMarkup,
     KeyboardButton,
-    Update
 )
 from aiogram.fsm.storage.memory import MemoryStorage
 
@@ -19,8 +18,6 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     raise RuntimeError("❌ BOT_TOKEN не задан в переменных окружения")
 
-WEBHOOK_PATH = "/webhook"
-
 # ================= ЛОГИ =================
 logging.basicConfig(
     level=logging.INFO,
@@ -28,10 +25,6 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
-
-# ================= FLASK =================
-
-app = Flask(__name__)
 
 # ================= AIOGRAM =================
 
@@ -322,7 +315,7 @@ RESULTS = {
 # ================= HANDLERS =================
 
 @dp.message(Command("start"))
-async def cmd_start(message: types.Message):
+async def cmd_start(message: Message):
     user_id = message.from_user.id
     user_data[user_id] = {
         "answers": [],
@@ -928,25 +921,21 @@ async def help_command(message: types.Message):
 
 
 # ====== ОБРАБОТКА НЕИЗВЕСТНЫХ КОМАНД ======
+
 @dp.message()
 async def unknown_command(message: types.Message):
     await message.answer("🤔 Не понял команду. Используй /start чтобы начать тест или /help для помощи.")
 
-# ================= WEBHOOK =================
+# ======
 
-@app.route(WEBHOOK_PATH, methods=["POST"])
-def telegram_webhook():
-    try:
-        update = Update.model_validate(request.json)
-        asyncio.run(dp.feed_update(bot, update))
-        return "ok"
-    except Exception as e:
-        logger.exception("Ошибка webhook")
-        return "error", 500
+async def main():
+    await dp.start_polling(bot)
 
+if __name__ == "__main__":
+    asyncio.run(main())
 # ================= START =================
 
 logger.info("=" * 40)
-logger.info("🤖 Bot webhook готов")
+logger.info("🤖 Bot polling запущен")
 logger.info(datetime.now().strftime("%d.%m.%Y %H:%M:%S"))
 logger.info("=" * 40)
