@@ -7,21 +7,20 @@ cursor = conn.cursor()
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
-    main_style TEXT,
-    extra_style TEXT,
-    updated_at TEXT
+    first_seen TEXT
 )
 """)
 conn.commit()
 
 
-def save_result(user_id: int, main_style: str, extra_style: str):
+def save_user(user_id: int):
     cursor.execute("""
-    INSERT INTO users (user_id, main_style, extra_style, updated_at)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(user_id) DO UPDATE SET
-        main_style = excluded.main_style,
-        extra_style = excluded.extra_style,
-        updated_at = excluded.updated_at
-    """, (user_id, main_style, extra_style, datetime.now().isoformat()))
+    INSERT OR IGNORE INTO users (user_id, first_seen)
+    VALUES (?, ?)
+    """, (user_id, datetime.now().isoformat()))
     conn.commit()
+
+
+def get_users_count():
+    cursor.execute("SELECT COUNT(*) FROM users")
+    return cursor.fetchone()[0]
