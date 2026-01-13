@@ -417,8 +417,8 @@ RESULTS = {
         'photo_file_id': "AgACAgIAAxkBAAIDC2le05pVr5Nuby_5jFUmjeWgUujrAAInDWsbcJj5SntIwtsxUV3yAQADAgADcwADOAQ"
     },
     'I': {
-        'type': "⬜ СЪЕМКА МИНИМАЛИЗМ",
-        'description': "Это создание фотографий, которые фокусируются на главном, убирая всё лишнее. Используя много свободного пространства, простые линии, ограниченную палитру и чистые композиции, что делает кадры лаконичными, понятными и запоминающимися. Это стиль с главной идеей - чистота и ясность.",
+        'type': "⬜ МИНИМАЛИЗМ",
+        'description': "фокусируется на главном, убирая всё лишнее. Используя много свободного пространства, «воздуха», простые линии, ограниченную палитру. Это стиль с главной идеей - чистоста и ясность.",
         'image': "Идеальный образ: однотонная одежда простого кроя, естественный макияж, аккуратная причёска.",
         'photo_file_id': "AgACAgIAAxkBAAIDEWle06liEs3EPdyZiTbQ3N0CB3tOAAIpDWsbcJj5Svj-nSa-0d6VAQADAgADcwADOAQ"
     },
@@ -625,7 +625,7 @@ async def show_results(user_id, chat_id):
 ✨ *Описание:*
 {result['description']}
 
-✨ *ДОПОЛНЯЮЩИЙ СТИЛЬ* ({second_result['type'].split()[1]}):
+✨ *ДОПОЛНЯЮЩИЙ СТИЛЬ* ({second_result['type'].split()}):
 {second_result['description']}..."""
 
     try:
