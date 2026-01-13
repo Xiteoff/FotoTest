@@ -1,9 +1,9 @@
+Мне нужно сделать так, чтобы в моём коде уже была функция сохранения пользователей, напиши для этого кода:
 # -*- coding: utf-8 -*-
 import os
 import sys
 import logging
 import asyncio
-import sqlite3
 from datetime import datetime
 
 from aiogram import Bot, Dispatcher, F
@@ -19,27 +19,6 @@ from aiogram.fsm.storage.memory import MemoryStorage
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     raise RuntimeError("❌ BOT_TOKEN не задан в переменных окружения")
-
-# ================= БАЗА ДАННЫХ =================
-
-conn = sqlite3.connect("users.db", check_same_thread=False)
-cursor = conn.cursor()
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY,
-    first_seen TEXT
-)
-""")
-conn.commit()
-
-
-def save_user(user_id: int):
-    cursor.execute("""
-    INSERT OR IGNORE INTO users (user_id, first_seen)
-    VALUES (?, ?)
-    """, (user_id, datetime.now().isoformat()))
-    conn.commit()
 
 # ================= ЛОГИ =================
 logging.basicConfig(
@@ -485,9 +464,6 @@ RESULTS = {
 
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
-
-    save_user(message.from_user.id)
-
     user_id = message.from_user.id
     user_data[user_id] = {
         "answers": [],
