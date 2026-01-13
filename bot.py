@@ -625,7 +625,7 @@ async def show_results(user_id, chat_id):
 ✨ *Описание:*
 {result['description']}
 
-✨ *ДОПОЛНЯЮЩИЙ СТИЛЬ* ({second_result['type'].split()}):
+✨ *ДОПОЛНЯЮЩИЙ СТИЛЬ:* {second_result['type']}
 {second_result['description']}"""
 
     try:
