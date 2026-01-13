@@ -626,7 +626,7 @@ async def show_results(user_id, chat_id):
 {result['description']}
 
 ✨ *ДОПОЛНЯЮЩИЙ СТИЛЬ* ({second_result['type'].split()}):
-{second_result['description']}..."""
+{second_result['description']}"""
 
     try:
         await bot.send_photo(
