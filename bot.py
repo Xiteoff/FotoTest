@@ -3,7 +3,9 @@ import os
 import sys
 import logging
 import asyncio
+import json
 from datetime import datetime
+from pathlib import Path
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message
@@ -28,13 +30,107 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ================= AIOGRAM =================
-
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
 # ================= ДАННЫЕ =================
-
 user_data = {}
+
+# ================= СИСТЕМА ОТСЛЕЖИВАНИЯ ПОЛЬЗОВАТЕЛЕЙ =================
+USERS_FILE = Path("users.json")
+
+
+def load_users():
+    #"""Загружает список пользователей из файла"""
+    if USERS_FILE.exists():
+        try:
+            with open(USERS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Ошибка загрузки users.json: {e}")
+            return {}
+    return {}
+
+
+def save_users(users_data):
+    #"""Сохраняет список пользователей в файл"""
+    try:
+        with open(USERS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(users_data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.error(f"Ошибка сохранения users.json: {e}")
+
+
+def track_user(user_id, username, first_name, last_name=None):
+    #"""Отслеживает нового пользователя и сохраняет информацию о нем"""
+    users_data = load_users()
+
+    if str(user_id) not in users_data:
+        users_data[str(user_id)] = {
+            'id': user_id,
+            'username': username,
+            'first_name': first_name,
+            'last_name': last_name,
+            'first_seen': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'last_seen': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'test_results': [],
+            'total_tests': 0
+        }
+        logger.info(f"📝 Новый пользователь: {username} ({first_name}) ID: {user_id}")
+    else:
+        users_data[str(user_id)]['last_seen'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if username:
+            users_data[str(user_id)]['username'] = username
+        if first_name:
+            users_data[str(user_id)]['first_name'] = first_name
+        if last_name:
+            users_data[str(user_id)]['last_name'] = last_name
+
+    save_users(users_data)
+    return users_data[str(user_id)]
+
+
+def add_test_result(user_id, result_type):
+    #"""Добавляет результат теста для пользователя"""
+    users_data = load_users()
+    user_id_str = str(user_id)
+
+    if user_id_str in users_data:
+        if 'test_results' not in users_data[user_id_str]:
+            users_data[user_id_str]['test_results'] = []
+
+        test_result = {
+            'date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'result_type': result_type,
+            'result_name': RESULTS.get(result_type, {}).get('type', 'Неизвестный тип')
+        }
+
+        users_data[user_id_str]['test_results'].append(test_result)
+        users_data[user_id_str]['total_tests'] = len(users_data[user_id_str]['test_results'])
+        save_users(users_data)
+        logger.info(f"✅ Результат теста добавлен для пользователя {user_id}: {result_type}")
+
+
+def get_users_stats():
+    #"""Возвращает статистику пользователей"""
+    users_data = load_users()
+    total_users = len(users_data)
+    active_today = 0
+    total_tests = 0
+
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    for user in users_data.values():
+        if user.get('last_seen', '').startswith(today):
+            active_today += 1
+        total_tests += user.get('total_tests', 0)
+
+    return {
+        'total_users': total_users,
+        'active_today': active_today,
+        'total_tests': total_tests
+    }
+
 
 # ===== ВОПРОСЫ И RESULTS =====
 # ====== ВСЕ 20 ВОПРОСОВ ТЕСТА ======
@@ -459,11 +555,22 @@ RESULTS = {
         'photo_file_id': "AgACAgIAAxkBAAIC9mle001yPUY2-iVXSdKz8iS0ug0lAAIdDWsbcJj5SqDEOabakm1VAQADAgADcwADOAQ"
     }
 }
+
+
 # ================= HANDLERS =================
 
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
     user_id = message.from_user.id
+
+    # Отслеживаем пользователя
+    track_user(
+        user_id=user_id,
+        username=message.from_user.username,
+        first_name=message.from_user.first_name,
+        last_name=message.from_user.last_name
+    )
+
     user_data[user_id] = {
         "answers": [],
         "current_question": 0,
@@ -494,16 +601,23 @@ async def cmd_start(message: Message):
 2. Ты выбираешь ответ кнопкой (1️⃣, 2️⃣, 3️⃣ или 4️⃣)
 3. В конце получаешь детальный разбор твоей идеальной фотосессии
 
-
-
 🚀 *Начнём? Нажми кнопку «Начать тест» ниже!*""",
         parse_mode="Markdown",
         reply_markup=keyboard,
     )
 
+
 @dp.message(F.text == "🚀 Начать тест!")
 async def start_test(message: Message):
     user_id = message.from_user.id
+
+    # Обновляем информацию о пользователе
+    track_user(
+        user_id=user_id,
+        username=message.from_user.username,
+        first_name=message.from_user.first_name,
+        last_name=message.from_user.last_name
+    )
 
     data = user_data.get(user_id)
     if not data:
@@ -549,6 +663,15 @@ async def ask_question(user_id, chat_id):
 @dp.message(F.text.in_(["1", "2", "3", "4"]))
 async def process_answer(message: Message):
     user_id = message.from_user.id
+
+    # Обновляем информацию о пользователе
+    track_user(
+        user_id=user_id,
+        username=message.from_user.username,
+        first_name=message.from_user.first_name,
+        last_name=message.from_user.last_name
+    )
+
     data = user_data.get(user_id)
 
     if not data or not data.get('test_started'):
@@ -580,6 +703,7 @@ async def process_answer(message: Message):
 
     # Задаем следующий вопрос
     await ask_question(user_id, message.chat.id)
+
 
 # ====== РЕЗУЛЬТАТЫ ======
 # ====== ПОКАЗ РЕЗУЛЬТАТОВ ======
@@ -618,6 +742,9 @@ async def show_results(user_id, chat_id):
     # Сохраняем результат
     data['result_type'] = result_type
     data['test_started'] = False
+
+    # Сохраняем результат теста для пользователя
+    add_test_result(user_id, result_type)
 
     # Отправляем фото с результатом
     photo_caption = f"""📸 *ТЕБЕ ПОДОЙДЁТ:* {result['type']}
@@ -676,6 +803,15 @@ async def show_results(user_id, chat_id):
 @dp.message(F.text == '📞 Консультация')
 async def consultation_button(message: Message):
     user_id = message.from_user.id
+
+    # Обновляем информацию о пользователе
+    track_user(
+        user_id=user_id,
+        username=message.from_user.username,
+        first_name=message.from_user.first_name,
+        last_name=message.from_user.last_name
+    )
+
     data = user_data.get(user_id, {})
 
     if 'result_type' in data and data['result_type']:
@@ -723,6 +859,14 @@ async def consultation_command(message: Message):
 async def new_test_button(message: Message):
     user_id = message.from_user.id
 
+    # Обновляем информацию о пользователе
+    track_user(
+        user_id=user_id,
+        username=message.from_user.username,
+        first_name=message.from_user.first_name,
+        last_name=message.from_user.last_name
+    )
+
     user_data[user_id] = {
         'answers': [],
         'current_question': 0,
@@ -757,6 +901,16 @@ async def new_test_button(message: Message):
 @dp.message(Command("help"))
 @dp.message(F.text.in_(['ℹ️ Помощь', 'помощь', 'Помощь']))
 async def help_command(message: Message):
+    user_id = message.from_user.id
+
+    # Обновляем информацию о пользователе
+    track_user(
+        user_id=user_id,
+        username=message.from_user.username,
+        first_name=message.from_user.first_name,
+        last_name=message.from_user.last_name
+    )
+
     help_text = """ℹ️ *ПОМОЩЬ ПО БОТУ*
 
 🔹 *Как работает тест?*
@@ -780,16 +934,78 @@ async def help_command(message: Message):
     await message.answer(help_text, parse_mode='Markdown')
 
 
-# ====== ОБРАБОТКА НЕИЗВЕСТНЫХ КОМАНД ======
+# ====== КОМАНДА ДЛЯ АДМИНА - ПОКАЗАТЬ СТАТИСТИКУ ======
+@dp.message(Command("stats"))
+async def show_stats(message: Message):
+    user_id = message.from_user.id
 
+    # Здесь можно добавить проверку на администратора
+    # Например, проверить ID администратора
+    ADMIN_IDS = [1378611420]  # Добавьте сюда ID администраторов, например [123456789]
+
+    if ADMIN_IDS and user_id not in ADMIN_IDS:
+        await message.answer("❌ Эта команда доступна только администраторам.")
+        return
+
+    stats = get_users_stats()
+    users_data = load_users()
+
+    # Получаем последних 10 пользователей
+    last_users = list(users_data.values())[-10:] if users_data else []
+
+    stats_text = f"""📊 *СТАТИСТИКА БОТА*
+
+👥 *Пользователи:*
+• Всего пользователей: {stats['total_users']}
+• Активных сегодня: {stats['active_today']}
+• Всего пройдено тестов: {stats['total_tests']}
+
+📈 *Последние пользователи:*
+"""
+
+    for user in reversed(last_users):
+        username = user.get('username', 'без username')
+        first_name = user.get('first_name', 'без имени')
+        last_seen = user.get('last_seen', 'неизвестно')
+        total_tests = user.get('total_tests', 0)
+
+        stats_text += f"• {first_name} (@{username}) - {last_seen} (тестов: {total_tests})\n"
+
+    stats_text += f"\n📁 *Файл с данными:* `users.json`"
+
+    await message.answer(stats_text, parse_mode='Markdown')
+
+
+# ====== ОБРАБОТКА НЕИЗВЕСТНЫХ КОМАНД ======
 @dp.message()
 async def unknown_command(message: Message):
+    user_id = message.from_user.id
+
+    # Отслеживаем пользователя даже при неизвестных командах
+    track_user(
+        user_id=user_id,
+        username=message.from_user.username,
+        first_name=message.from_user.first_name,
+        last_name=message.from_user.last_name
+    )
+
     await message.answer("🤔 Не понял команду. Используй /start чтобы начать тест или /help для помощи.")
+
 
 # ======
 
 async def main():
+    # Создаем файл users.json если его нет
+    if not USERS_FILE.exists():
+        save_users({})
+        logger.info("📁 Создан файл users.json")
+
+    # Загружаем статистику при запуске
+    stats = get_users_stats()
+    logger.info(f"📊 Загружено пользователей: {stats['total_users']}")
+
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
